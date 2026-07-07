@@ -259,8 +259,6 @@ void AWTInputBridge_sendKey(int keycode) {
     self.inputTextField.sendChar = ^(jchar keychar){
         AWTInputBridge_sendChar(keychar);
     };
-
-    __weak typeof(self) weakSelf = self;
     self.inputTextField.sendKey = ^(int key, int scancode, int action, int mods) {
         if (action == 0) return;
         switch (key) {
@@ -268,15 +266,7 @@ void AWTInputBridge_sendKey(int keycode) {
                 AWTInputBridge_sendKey('\b'); // VK_BACK_SPACE
                 break;
             case GLFW_KEY_ENTER:
-                AWTInputBridge_sendKey('\n'); // VK_ENTER
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    JavaGUIViewController *strongSelf = weakSelf;
-                    if (!strongSelf) return;
-
-                    strongSelf.inputTextField.text = @"";
-                    [strongSelf.inputTextField resignFirstResponder];
-                    [strongSelf.view endEditing:YES];
-                });
+                AWTInputBridge_sendKey('\n'); // VK_ENTER;
                 break;
             case GLFW_KEY_DPAD_LEFT:
                 AWTInputBridge_sendKey(0xE2); // VK_KP_LEFT;
@@ -504,12 +494,9 @@ dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
 
 - (BOOL)textFieldShouldReturn:(UITextField *)textField {
     self.inputTextField.sendKey(GLFW_KEY_ENTER, 0, 1, 0);
-
+    //self.inputTextField.sendKey(GLFW_KEY_ENTER, 0, 0, 0);
     textField.text = @"";
-    [textField resignFirstResponder];
-    [self.view endEditing:YES];
-
-    return NO;
+    return YES;
 }
 
 
