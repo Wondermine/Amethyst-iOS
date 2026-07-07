@@ -18,31 +18,32 @@ jobs:
         include:
           - platform: 2
             platform_name: ios
-    
+
     runs-on: macos-latest
+
     steps:
-      - name: Remove work folders
-        run: |
-          echo "before"
-          ls -lah ./
-          rm -rf ./* || true
-          rm -rf ./.??* || true
-          echo "after"
-          ls -lah ./
-          
       - name: Checkout repository
-        uses: actions/checkout@main
+        uses: actions/checkout@v4
 
       - name: Checkout repository submodules
         run: git submodule update --init --recursive
 
+      - name: Install build dependencies
+        run: |
+          brew update
+          brew install make cmake wget ldid
+          export PATH="/opt/homebrew/bin:$PATH"
+          which gmake
+          gmake --version
+
       - name: Get gl4es latest commit hash
         id: gl4es-sha
-        run: echo "::set-output name=sha::$(echo $(git ls-remote https://github.com/PojavLauncherTeam/gl4es-114-extra refs/heads/master | grep -io '^\S*'))"
+        run: |
+          echo "sha=$(git ls-remote https://github.com/PojavLauncherTeam/gl4es-114-extra refs/heads/master | awk '{print $1}')" >> "$GITHUB_OUTPUT"
         shell: bash
 
       - name: Cache gl4es
-        uses: actions/cache@main
+        uses: actions/cache@v4
         if: false # use gl4es 1.1.5
         id: gl4es-cache
         with:
@@ -51,7 +52,7 @@ jobs:
 
       - name: Get gl4es
         if: false && steps.gl4es-cache.outputs.cache-hit != 'true'
-        uses: actions/checkout@main
+        uses: actions/checkout@v4
         with:
           repository: 'PojavLauncherTeam/gl4es-114-extra'
           path: 'gl4es'
@@ -70,7 +71,7 @@ jobs:
             -DCMAKE_C_FLAGS=-Wno-error=implicit-function-declaration
           cmake --build build --config RelWithDebInfo --target GL
           cp -R lib/libGL.dylib ../Natives/resources/Frameworks/libgl4es_114.dylib
-          
+
       - name: Push gl4es
         if: false && github.event != 'pull_request' && github.ref_name == 'main' && steps.gl4es-cache.outputs.cache-hit != 'true'
         continue-on-error: true
@@ -81,8 +82,9 @@ jobs:
 
       - name: Build for ${{ matrix.platform_name }}
         run: |
-          export PATH=/opt/homebrew/bin:$PATH
+          export PATH="/opt/homebrew/bin:$PATH"
           export SLIMMED=1
+
           if [ "${{ matrix.platform_name }}" == "ios" ]; then
             # Build ipa and tipa for iOS
             gmake -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }}
@@ -96,31 +98,31 @@ jobs:
           fi
 
       - name: Upload regular ipa
-        uses: actions/upload-artifact@main
+        uses: actions/upload-artifact@v4
         with:
           name: org.angelauramc.amethyst-${{ matrix.platform_name }}.ipa
           path: artifacts/org.angelauramc.amethyst-*-${{ matrix.platform_name }}.ipa
 
       - name: Upload regular tipa
-        uses: actions/upload-artifact@main
+        uses: actions/upload-artifact@v4
         with:
           name: org.angelauramc.amethyst-${{ matrix.platform_name }}-trollstore.tipa
           path: artifacts/org.angelauramc.amethyst-*-${{ matrix.platform_name }}-trollstore.tipa
 
       - name: Upload slimmed ipa
-        uses: actions/upload-artifact@main
+        uses: actions/upload-artifact@v4
         with:
           name: org.angelauramc.amethyst.slimmed-${{ matrix.platform_name }}.ipa
           path: artifacts/org.angelauramc.amethyst.slimmed-*-${{ matrix.platform_name }}.ipa
 
       - name: Upload slimmed tipa
-        uses: actions/upload-artifact@main
+        uses: actions/upload-artifact@v4
         with:
           name: org.angelauramc.amethyst.slimmed-${{ matrix.platform_name }}-trollstore.tipa
-          path: artifacts/org.angelauramc.amethyst.slimmed-*-${{ matrix.platform_name }}-trollstore.tipa
+          path: artifacts/org.angelauramc.amethyst.slimmed-*-${{ matrix.platform_name }}.tipa
 
       - name: Upload PojavLauncher.dSYM
-        uses: actions/upload-artifact@main
+        uses: actions/upload-artifact@v4
         if: matrix.platform_name == 'ios'
         with:
           name: AngelAuraAmethyst.dSYM
